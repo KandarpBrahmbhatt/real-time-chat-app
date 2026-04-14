@@ -34,7 +34,7 @@ io.on("connection", (socket) => {
       room,
       socketId: socket.id,
       online: true,          // ADD THIS
-  lastSeen: null,
+      lastSeen: null,
     });
 
     io.to(room).emit("system", `${name} joined ${room}`);
@@ -48,6 +48,7 @@ io.on("connection", (socket) => {
       type: "room",
     });
   });
+
 
   // ROOM IMAGE
   socket.on("send_image", (data) => {
@@ -115,6 +116,28 @@ io.on("connection", (socket) => {
     socket.emit("receive_private_image", data);
   });
 
+  // ROOM VIDEO
+  socket.on("send_video", (data) => {
+    io.to(data.room).emit("receive_video", {
+      ...data,
+      type: "room",
+    });
+  });
+
+  // PRIVATE VIDEO
+  socket.on("private_video", ({ to, video, from, time }) => {
+    const data = {
+      video,
+      from,
+      to,
+      time,
+      type: "private",
+    };
+
+    io.to(to).emit("receive_private_video", data);
+    socket.emit("receive_private_video", data);
+  });
+
   socket.on("typing", ({ to, from }) => {
     io.to(to).emit("typing", { from });
   });
@@ -147,8 +170,8 @@ io.on("connection", (socket) => {
         roomUsers.push({
           name: value.name,
           socketId: key,
-           online: value.online ?? true,   // ✅ FIX
-        lastSeen: value.lastSeen || null // ✅ optional
+          online: value.online ?? true,   //  FIX
+          lastSeen: value.lastSeen || null //  optional
         });
       }
     });

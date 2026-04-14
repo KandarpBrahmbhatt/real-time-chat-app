@@ -48,6 +48,14 @@ export default function Chat() {
       setMessages((prev) => [...prev, data]);
     });
 
+    socketRef.current.on("receive_video", (data) => {
+      setMessages((prev) => [...prev, data]);
+    });
+
+    socketRef.current.on("receive_private_video", (data) => {
+      setMessages((prev) => [...prev, data]);
+    });
+
     socketRef.current.on("system", (msg) => {
       setMessages((prev) => [...prev, { system: true, message: msg }]);
     });
@@ -122,12 +130,48 @@ export default function Chat() {
   };
 
   // SEND IMAGE
-  const sendImage = async () => {
+  // const sendImage = async () => {
+  //   const file = fileRef.current.files[0];
+  //   if (!file) return;
+
+  //   const formData = new FormData();
+  //   formData.append("image", file);
+
+  //   const res = await fetch("http://localhost:5000/upload", {
+  //     method: "POST",
+  //     body: formData,
+  //   });
+
+  //   const dataRes = await res.json();
+
+  //   const time = new Date().toLocaleTimeString();
+
+  //   if (selectedUser) {
+  //     socketRef.current.emit("private_image", {
+  //       to: selectedUser.socketId,
+  //       image: dataRes.url,
+  //       from: name,
+  //       time,
+  //     });
+  //   } else {
+  //     socketRef.current.emit("send_image", {
+  //       user: name,
+  //       image: dataRes.url,
+  //       room,
+  //       time,
+  //       type: "room",
+  //     });
+  //   }
+
+  //   fileRef.current.value = "";
+  // };
+
+  const sendMedia = async () => {
     const file = fileRef.current.files[0];
     if (!file) return;
 
     const formData = new FormData();
-    formData.append("image", file);
+    formData.append("image", file); // keep same key (backend expects this)
 
     const res = await fetch("http://localhost:5000/upload", {
       method: "POST",
@@ -135,24 +179,44 @@ export default function Chat() {
     });
 
     const dataRes = await res.json();
-
     const time = new Date().toLocaleTimeString();
 
+    const isVideo = file.type.startsWith("video");
+
     if (selectedUser) {
-      socketRef.current.emit("private_image", {
-        to: selectedUser.socketId,
-        image: dataRes.url,
-        from: name,
-        time,
-      });
+      if (isVideo) {
+        socketRef.current.emit("private_video", {
+          to: selectedUser.socketId,
+          video: dataRes.url,
+          from: name,
+          time,
+        });
+      } else {
+        socketRef.current.emit("private_image", {
+          to: selectedUser.socketId,
+          image: dataRes.url,
+          from: name,
+          time,
+        });
+      }
     } else {
-      socketRef.current.emit("send_image", {
-        user: name,
-        image: dataRes.url,
-        room,
-        time,
-        type: "room",
-      });
+      if (isVideo) {
+        socketRef.current.emit("send_video", {
+          user: name,
+          video: dataRes.url,
+          room,
+          time,
+          type: "room",
+        });
+      } else {
+        socketRef.current.emit("send_image", {
+          user: name,
+          image: dataRes.url,
+          room,
+          time,
+          type: "room",
+        });
+      }
     }
 
     fileRef.current.value = "";
@@ -404,11 +468,25 @@ export default function Chat() {
                 }}>
                   <b>{msg.user || msg.from}</b>
 
-                  {msg.image ? (
+                  {/* {msg.image ? (
                     <img src={msg.image} style={{ width: "100%" }} />
                   ) : (
                     <p>{msg.message}</p>
+                  )} */}
+
+                  {msg.image && (
+                    <img src={msg.image} style={{ width: "100%", borderRadius: "10px" }} />
                   )}
+
+                  {msg.video && (
+                    <video
+                      src={msg.video}
+                      controls
+                      style={{ width: "100%", borderRadius: "10px" }}
+                    />
+                  )}
+
+                  {msg.message && <p>{msg.message}</p>}
 
                   <div style={{ fontSize: "10px" }}>
                     {msg.time}
@@ -462,13 +540,19 @@ export default function Chat() {
           />
 
           {/* File Upload Hidden */}
-          <input
+          {/* <input
             type="file"
             ref={fileRef}
             style={{ display: "none" }}
             onChange={sendImage}
+          /> */}
+          <input
+            type="file"
+            ref={fileRef}
+            style={{ display: "none" }}
+            accept="image/*,video/*"
+            onChange={sendMedia}
           />
-
           {/* Attach Button */}
           <button
             onClick={() => fileRef.current.click()}
